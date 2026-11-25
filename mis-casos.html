@@ -1,0 +1,68 @@
+<title>Mis casos de encuestas</title>
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--tx:#1f2328;--mut:#6b7280;--bd:#e3e3df;--ac:#0f6e56;--acx:#fff;--bad:#b42318;--ok:#0f6e56;--warn:#a86a00}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141414;--card:#1e1e1e;--tx:#ececec;--mut:#9aa0a6;--bd:#333;--ac:#3ccf9f;--acx:#10281f;--bad:#ff8a80;--ok:#3ccf9f;--warn:#e8b04a}}
+:root[data-theme="dark"]{--bg:#141414;--card:#1e1e1e;--tx:#ececec;--mut:#9aa0a6;--bd:#333;--ac:#3ccf9f;--acx:#10281f;--bad:#ff8a80;--ok:#3ccf9f;--warn:#e8b04a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,sans-serif}
+main{max-width:680px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:21px;margin:0 0 4px}h2{font-size:17px;margin:0}.mut{color:var(--mut);font-size:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin:14px 0}
+label{display:block;font-size:14px;color:var(--mut);margin:12px 0 4px}
+select,input,textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:10px}
+textarea{min-height:80px;resize:vertical}
+button{font:inherit;font-weight:600;background:var(--ac);color:var(--acx);border:0;border-radius:8px;padding:12px 18px;margin-top:14px;width:100%;cursor:pointer}
+button.sec{background:transparent;color:var(--mut);border:1px solid var(--bd);width:auto;padding:6px 12px;font-weight:400;margin:0}
+button:disabled{opacity:.5}.msg{margin-top:10px;font-size:14px}.ok{color:var(--ok)}.err{color:var(--bad)}
+.q{display:inline-block;background:var(--bg);border:1px solid var(--bd);border-radius:999px;padding:2px 10px;font-size:13px;margin:2px 4px 2px 0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sug{background:var(--bg);border-radius:8px;padding:8px 10px;margin-top:8px;font-size:14px}
+</style>
+<main id="app"></main>
+<script>
+var API='https://rztnyqkweufoyvmajfww.supabase.co/functions/v1/tablero';
+var app=document.getElementById('app'),C='',NOM='',D=null;
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k)||'';if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){return ''}}
+C=ls('codigo_equipo');NOM=ls('nombre_equipo');
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function gate(msg){app.innerHTML='<h1>Mis casos de encuestas</h1><div class="card"><b>Ingresa el código de acceso</b><p class="mut">Viene en el correo que recibiste. Solo se pide la primera vez en este navegador.</p><input id="code" placeholder="Código" autocomplete="off"><button id="go">Entrar</button>'+(msg?'<div class="msg err">'+esc(msg)+'</div>':'')+'</div>';
+  document.getElementById('go').onclick=function(){var v=document.getElementById('code').value.trim();if(v){C=v;load(true)}};
+  document.getElementById('code').onkeydown=function(e){if(e.key==='Enter')document.getElementById('go').click()}}
+function pickName(msg){
+  var o=(D&&D.resp||[]).map(function(n){return'<option'+(n===NOM?' selected':'')+'>'+esc(n)+'</option>'}).join('');
+  app.innerHTML='<h1>Mis casos de encuestas</h1><div class="card"><b>¿Quién eres?</b><select id="nom"><option value="">Elige tu nombre…</option>'+o+'</select><button id="go">Ver mis casos</button>'+(msg?'<div class="msg err">'+esc(msg)+'</div>':'')+'</div>';
+  document.getElementById('go').onclick=function(){var v=document.getElementById('nom').value;if(!v){pickName('Elige tu nombre.');return}NOM=v;ls('nombre_equipo',v);load(false)}}
+function load(fresh){
+  var u=API+'?c='+encodeURIComponent(C)+(NOM?'&nombre='+encodeURIComponent(NOM):'');
+  return fetch(u).then(function(r){if(r.status===403){C='';ls('codigo_equipo',null);gate(fresh?'Código incorrecto. Revisa el correo.':'');return null}return r.json()}).then(function(d){
+    if(!d)return;if(d.rol!=='equipo'&&d.rol!=='directivo'){gate('Código no válido.');return}
+    ls('codigo_equipo',C);D=d;if(!NOM||!d.cases){pickName();return}show()}).catch(function(){app.innerHTML='<div class="card"><b>No hay conexión con el servidor.</b><p class="mut">Recarga la página para intentarlo de nuevo.</p></div>'})}
+function show(){
+  var cs=D.cases.slice().sort(function(a,b){var o=function(x){return (x.estado==='Nuevo'?0:x.estado==='En gestión'?1:2)};return o(a)-o(b)||String(b.fecha).localeCompare(String(a.fecha))});
+  var ab=cs.filter(function(c){return c.estado==='Nuevo'||c.estado==='En gestión'}).length;
+  var h='<div class="top"><div><h1>Mis casos</h1><div class="mut">'+esc(NOM)+' · '+ab+' abierto'+(ab===1?'':'s')+'</div></div><button class="sec" id="chg">Cambiar</button></div>';
+  if(!cs.length)h+='<div class="card">No tienes casos pendientes. Gracias.</div>';
+  cs.forEach(function(c){h+=card(c)});app.innerHTML=h;
+  document.getElementById('chg').onclick=function(){NOM='';ls('nombre_equipo',null);pickName()};
+  cs.forEach(function(c){var b=document.getElementById('go-'+c._id);if(b)b.onclick=function(){save(c._id,b)}})}
+function card(c){
+  var opts=function(a,sel){return a.map(function(o){return'<option'+(o===sel?' selected':'')+'>'+esc(o)+'</option>'}).join('')};
+  var i=esc(c._id),cerr=(c.estado==='Cerrado'||c.estado==='Descartado');
+  var rol=c.comercial===NOM?'Tú eres el comercial: escribes al cliente y cierras el caso.':(c.ejecutivo===NOM?'Tú eres el ejecutivo de servicio: haces la revisión interna.':'');
+  return '<div class="card" id="c-'+i+'"><h2>'+esc(c.cliente)+'</h2><div class="mut">'+esc(c.evento)+'</div><div style="margin-top:8px">'+(c.nps!=null?'<span class="q">NPS '+esc(c.nps)+'</span>':'')+(c.razones||[]).map(function(r){return'<span class="q">'+esc(r)+'</span>'}).join('')+(c.comercial?'<span class="q">Comercial: '+esc(c.comercial)+'</span>':'')+(c.ejecutivo?'<span class="q">Ejecutivo: '+esc(c.ejecutivo)+'</span>':'')+'</div>'+
+  (rol?'<p class="mut">'+esc(rol)+'</p>':'')+
+  (c.obs?'<p><b>Comentario del cliente</b><br>'+esc(c.obs)+'</p>':'')+(c.momento?'<p><b>Momento que más recuerda</b><br>'+esc(c.momento)+'</p>':'')+
+  ((c.accionSug||[]).length?'<div class="sug"><b>Acción sugerida</b>'+c.accionSug.map(function(a){return'<div>'+esc(a.quien)+': '+esc(a.texto)+'</div>'}).join('')+'</div>':'')+
+  '<label>Estado</label><select id="e-'+i+'">'+opts(D.estados,c.estado)+'</select>'+
+  '<label>Responsable</label><select id="r-'+i+'"><option value=""></option>'+opts(D.resp,c.responsable||c.comercial||'')+'</select>'+
+  '<label>Gestión realizada</label><textarea id="a-'+i+'">'+esc(c.accion)+'</textarea>'+
+  '<label>Revisión interna</label><textarea id="v-'+i+'">'+esc(c.revision)+'</textarea>'+
+  '<button id="go-'+i+'">Guardar</button><div class="msg" id="m-'+i+'"></div>'+
+  (c.actualizado?'<p class="mut">Última actualización: '+esc(new Date(c.actualizado).toLocaleString('es-CO'))+' por '+esc(c.actualizadoPor||'')+'</p>':'')+'</div>'}
+function save(id,b){
+  var m=document.getElementById('m-'+id),g=function(p){return document.getElementById(p+'-'+id).value};
+  b.disabled=true;m.className='msg';m.textContent='Guardando…';
+  fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({c:C,nombre:NOM,id:id,estado:g('e'),responsable:g('r'),accion:g('a'),revision:g('v')})})
+  .then(function(r){return r.json()}).then(function(j){b.disabled=false;if(j.ok){m.className='msg ok';m.textContent='Guardado. Gracias.'}else{m.className='msg err';m.textContent='No se pudo guardar ('+(j.error||'error')+').'}})
+  .catch(function(){b.disabled=false;m.className='msg err';m.textContent='Sin conexión. Inténtalo de nuevo.'})}
+if(!C)gate('');else load(false);
+</script>
