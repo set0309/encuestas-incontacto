@@ -342,14 +342,20 @@ function myName(){var n='';try{n=localStorage.getItem('nombre')||''}catch(e){}re
 function drawWho(){var el=$('who');if(!el)return;var me=myName(),l=(S.resp||[]).slice();if(me&&l.indexOf(me)<0)l.push(me);
   el.innerHTML='Soy: <select id="whoSel" style="font:inherit;font-size:13px"><option value="">Elige tu nombre…</option>'+l.map(function(n){return '<option'+(n===me?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select>'}
 document.addEventListener('change',function(e){if(e.target&&e.target.id==='whoSel'){try{localStorage.setItem('nombre',e.target.value)}catch(x){}}});
+function flash(id,txt,bad){
+  var c=document.querySelector('.case[data-id="'+(window.CSS&&CSS.escape?CSS.escape(id):id)+'"]');if(!c){var t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);z-index:9';document.body.appendChild(t)}t.style.background=bad?'#fbe9e7':'#e6f4ea';t.style.color=bad?'#c9372f':'#1e6b3a';t.textContent=txt+(bad?'':' El caso ya no aparece en esta vista por su nuevo estado.');setTimeout(function(){if(t.parentNode)t.parentNode.removeChild(t)},4000);return}
+  var f=c.querySelector('.flash');if(!f){f=document.createElement('div');f.className='flash';f.style.cssText='margin-top:8px;padding:8px 12px;border-radius:8px;font-size:14px';c.appendChild(f)}
+  f.style.background=bad?'var(--crit-bg)':'#e6f4ea';f.style.color=bad?'var(--crit)':'#1e6b3a';f.textContent=txt;f.scrollIntoView({block:'nearest'})}
 async function saveCase(id){
   var c=S.cases.filter(function(x){return x._id===id})[0],d=S.drafts[id];if(!c||!d||S.saving[id])return;
-  var nom=myName();if(!nom){$('msg').innerHTML='<div class="note" style="background:var(--crit-bg);color:var(--crit)">Elige tu nombre arriba (&ldquo;Soy&rdquo;) antes de guardar.</div>';return}
+  var nom=myName();
+  if(!nom){flash(id,'Antes de guardar, elige tu nombre arriba a la derecha, en "Soy".',true);var w=$('whoSel');if(w){w.style.outline='2px solid #c9372f';w.scrollIntoView({block:'center'});w.focus()}return}
   var estado=d.estado!=null?d.estado:c.estado,rsp=d.responsable!=null?d.responsable:(c.responsable||c.comercial||''),acc=d.accion!=null?d.accion:(c.accion||''),rev=d.revision!=null?d.revision:(c.revision||'');
   S.saving[id]=true;render();
-  try{var j=await post({id:id,nombre:nom,estado:estado,responsable:rsp,accion:acc,revision:rev});if(!j.ok)throw 0;delete S.drafts[id];$('msg').innerHTML='';await load(true)}
-  catch(err){$('msg').innerHTML='<div class="note" style="background:var(--crit-bg);color:var(--crit)">No se pudo guardar el cambio. Revisa tu conexión e inténtalo de nuevo.</div>'}
-  delete S.saving[id];render()}
+  var ok=false;
+  try{var j=await post({id:id,nombre:nom,estado:estado,responsable:rsp,accion:acc,revision:rev});ok=!!j.ok;if(ok){delete S.drafts[id];await load(true)}}catch(err){ok=false}
+  delete S.saving[id];render();
+  flash(id,ok?'Guardado.':'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.',!ok)}
 async function saveResp(names){
   var nom=myName()||'Directivo';
   try{var j=await post({nombre:nom,names:names});if(!j.ok)throw 0;S.resp=names;$('msg').innerHTML='';render()}
