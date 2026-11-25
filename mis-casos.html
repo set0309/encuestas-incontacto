@@ -50,7 +50,7 @@ function card(c){
   var rol=c.comercial===NOM?'Tú eres el comercial: escribes al cliente y cierras el caso.':(c.ejecutivo===NOM?'Tú eres el ejecutivo de servicio: haces la revisión interna.':'');
   return '<div class="card" id="c-'+i+'"><h2>'+esc(c.cliente)+'</h2><div class="mut">'+esc(c.evento)+'</div><div style="margin-top:8px">'+(c.nps!=null?'<span class="q">NPS '+esc(c.nps)+'</span>':'')+(c.razones||[]).map(function(r){return'<span class="q">'+esc(r)+'</span>'}).join('')+(c.comercial?'<span class="q">Comercial: '+esc(c.comercial)+'</span>':'')+(c.ejecutivo?'<span class="q">Ejecutivo: '+esc(c.ejecutivo)+'</span>':'')+'</div>'+
   (rol?'<p class="mut">'+esc(rol)+'</p>':'')+
-  (c.obs?'<p><b>Comentario del cliente</b><br>'+esc(c.obs)+'</p>':'')+(c.momento?'<p><b>Momento que más recuerda</b><br>'+esc(c.momento)+'</p>':'')+
+  (c.obs?'<p><b>Comentario del cliente</b><br>'+esc(c.obs).replace(/\n/g,'<br>')+'</p>':'')+(c.momento?'<p><b>Momento que más recuerda</b><br>'+esc(c.momento).replace(/\n/g,'<br>')+'</p>':'')+
   ((c.accionSug||[]).length?'<div class="sug"><b>Acción sugerida</b>'+c.accionSug.map(function(a){return'<div>'+esc(a.quien)+': '+esc(a.texto)+'</div>'}).join('')+'</div>':'')+
   '<label>Estado</label><select id="e-'+i+'">'+opts(D.estados,c.estado)+'</select>'+
   (esCom?'<label>Gestión realizada con el cliente</label><textarea id="a-'+i+'">'+esc(c.accion)+'</textarea>':(c.accion?'<p><b>Gestión con el cliente</b><br>'+esc(c.accion)+'</p>':''))+
